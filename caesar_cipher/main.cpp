@@ -1,22 +1,26 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <limits>
+
+bool isLetter(std::string text){
+    for(char ch : text)
+        if(!isalpha(ch))
+            return false;
+    return true;
+}
 
 // Function to encrypt the text.
 std::string encryption(std::string text, int shift){
-    int shiftAmount = 0;
-    // Convert the string to a character array for easier manipulation.
-    char arrayText[text.length()];
-    strcpy(arrayText, text.c_str());
 
     // Loop through the array and shift the characters by the shift value.
-    for(int i = 0; i < text.length(); i++){
+    for(int i = 0; i < text.length(); i++)
         // 97 is lower case, 65 is upper case
-        (islower(arrayText[i])) ? shiftAmount = 97 : shiftAmount = 65;
-        arrayText[i] = char((int(arrayText[i]) + shift - shiftAmount) % 26 + shiftAmount);
-    }
+        (islower(text[i])) ? 
+        text[i] = char((int(text[i]) + shift - 97) % 26 + 97) : 
+        text[i] = char((int(text[i]) + shift - 65) % 26 + 65);
 
-    return arrayText;
+    return text;
 };
 
 // Function to decrypt the text.
@@ -32,21 +36,35 @@ int main(){
     
     system("cls");
     while(true){
+        std::cout << "\n=============================\n";
+        std::cout << "\tCaesar Cipher\n";
+        std::cout << "=============================\n";
         std::cout << "1. Encrypt\n2. Decrypt\n";
-        std::cin >> option;
+        std::cout << "=============================\n";
+        std::cout << "Option : "; std::cin >> option;
         
         if(option != 1 && option != 2){
-            std::cout << "Invalid option\n";
-            continue;
-        }else if(option == 1){
-            std::cout << "Input the text : "; std::cin >> text;
-            std::cout << "Shift value : "; std::cin >> shift;
-            std::cout << "Encrypt Text : " << encryption(text, shift) << std::endl;
-        }else if(option == 2){
-            std::cout << "Input the text : "; std::cin >> text;
-            std::cout << "Shift value : "; std::cin >> shift;
-            std::cout << "Decrypt Text : " << decryption(text, shift) << std::endl;
+            std::cout << "\tInvalid option\n"; 
+            break;
         }
+        // Clear the input buffer before taking input for the text
+        std::cin.ignore();
+        std::cout << "\nInput the text : "; std::getline(std::cin, text);
+        if(!isLetter(text)){
+            std::cout << "\tInvalid text\n"; 
+            break;
+        }
+        std::cout << "Shift value : "; std::cin >> shift;
+        if(!(shift > 0 && shift < 99999)){
+            std::cout << "\tInvalid shift value\n"; 
+            break;
+        }
+
+        if(option == 1)
+            std::cout << "Encrypt Text : " << encryption(text, shift);
+        if(option == 2)
+            std::cout << "Decrypt Text : " << decryption(text, shift);
+        std::cout << std::endl << std::endl;
     }
 
     return 0;

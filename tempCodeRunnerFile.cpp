@@ -1,1 +1,0 @@
-std::cout << arrayText[i] << " " << int(arrayText[i]) + shift << " " << int(arrayText[i]) << std::endl;

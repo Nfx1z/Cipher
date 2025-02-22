@@ -15,9 +15,9 @@ std::string simpleEncrypt(std::string &text, int shift){
         // Lowercase letters a-z
         else if( text[i] >= 'a' && text[i] <= 'z' )
             text[i] = char((text[i] + shift - 'a') % 26 + 'a');
-        // Symbols ^ _ `
-        else if(text[i] >= '^' && text[i] <= '`')
-            text[i] = char((text[i] + shift - '^') % 3 + '^');
+        // Symbols [ \ ] ^ _ `
+        else if(text[i] >= '[' && text[i] <= '`')
+            text[i] = char((text[i] + shift - '[') % 6 + '[');
         // Uppercase letters A-Z
         else if( text[i] >= 'A' && text[i] <= 'Z' )
             text[i] = char((text[i] + shift - 'A') % 26 + 'A');
@@ -44,9 +44,9 @@ std::string simpleDecrypt(std::string &text, int shift){
         // Lowercase letters a-z
         else if(text[i] >= 'a' && text[i] <= 'z' )
             text[i] = char((text[i] - (shift % 26) - 'a' + 26) % 26 + 'a');
-        // Symbols ^ _ `
-        else if(text[i] >= '^' && text[i] <= '`')
-            text[i] = char((text[i] - (shift % 3) - '^' + 3) % 3 + '^');
+        // Symbols [ \  ] ^ _ `
+        else if(text[i] >= '[' && text[i] <= '`')
+            text[i] = char((text[i] - (shift % 6) - '[' + 6) % 6 + '[');
         // Uppercase letters A-Z
         else if(text[i] >= 'A' && text[i] <= 'Z' )
             text[i] = char((text[i] - (shift % 26) - 'A' + 26) % 26 + 'A');

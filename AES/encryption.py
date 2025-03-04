@@ -1,5 +1,3 @@
-import random
-
 # AES S-box (SubBytes step) - Full 16x16 Table
 # The S-Box is always the same except for Modified AES
 # For decryption, the S-Box is inverse
@@ -37,6 +35,14 @@ RCON = [
     [0x1B, 0x00, 0x00, 0x00],
     [0x36, 0x00, 0x00, 0x00]
 ]
+
+# AES MixColumns transformation
+def add_round_key(state, round_key):
+    """XORs each byte of the state with the round key."""
+    for i in range(4):
+        for j in range(4):
+            state[i][j] ^= round_key[i][j]  # XOR with round key
+    return state
 
 #  SubBytes : Uses the S-box to replace each byte
 def sub_bytes(state):
@@ -122,85 +128,9 @@ def mix_single_column(column):
 
 # AES MixColumns on the state
 def mix_columns(state):
-    """Applies MixColumns to the entire state"""
-    return [mix_single_column(col) for col in zip(*state)]
-
-
-# Multiply by 2 is equal to shift left by 1
-def gmul_2(num_bits):
-    """
-    Multiplication by 2 in the GF(2^8) finite field.
-    We need to shift left by 1 and check if the MSB is 1
-        MSB is the most significant bit (leftmost bit)
-    But if we shift left by 1, the MSB will be lost
-    Instead we do & 0x80 ( 1000 0000 ) to know if the MSB is 1
-    """
-    # if the MSB is 1, we need to XOR with 0x1B (0001 1011)
-    # & 0xFF is for keep 8 bits only
-    # eg. ((0x80 << 1) ^ 0x1B) & 0xFF   (0x80 << 1) ^ 0x1B
-    # -> (0x100 ^ 0x1B) & 0xFF          0x100 ^ 0x1B
-    # -> 0x11B & 0xFF                X  0x11B wrong result
-    # -> 0x1B  ✓ correct result
-    if(num_bits & 0x80):
-        return ((num_bits << 1) ^ 0x1B) & 0xFF
-    # if the MSB is 0, we can just shift left by 1
-    else:
-        return (num_bits << 1) & 0xFF
-    
-# Multiply by 3 is equal to multiply by 2 and then XOR with the original number
-def gmul_3(num_bits):
-    """
-    Multiplication by 3 in the GF(2^8) finite field.
-    gmul_3(num_bits) = gmul_2(num_bits) ^ num_bits
-    """
-    return gmul_2(num_bits) ^ num_bits
-
-# MixColumns for each column in the state
-def mix_single_column(columns):
-    """
-    MixColumns transformation in AES.
-    # This matrix never changes regardless of the key size
-        [2, 3, 1, 1],
-        [1, 2, 3, 1],
-        [1, 1, 2, 3],
-        [3, 1, 1, 2]
-    eg: 
-    before = [0xdb, 0xf2, 0x01, 0xc6]
-    after = [0x67, 0xe1, 0x7a, 0x12]
-    """
-    # Create a copy of the columns
-    t = columns[:]
-
-    columns[0] = gmul_2(t[0]) ^ gmul_3(t[1]) ^ t[2] ^ t[3]
-    columns[1] = t[0] ^ gmul_2(t[1]) ^ gmul_3(t[2]) ^ t[3]
-    columns[2] = t[0] ^ t[1] ^ gmul_2(t[2]) ^ gmul_3(t[3])
-    columns[3] = gmul_3(t[0]) ^ t[1] ^ t[2] ^ gmul_2(t[3])
-
-    return columns
-
-# MixColumns for the entire state
-def mix_columns(state):
-    """
-    MixColumns transformation in AES.
-    eg: 
-    state = [
-        [0xdb, 0x13, 0x53, 0x45],  # Column 1
-        [0xf2, 0x0a, 0x22, 0x5c],  # Column 2
-        [0x01, 0x01, 0x01, 0x01],  # Column 3
-        [0xc6, 0xc6, 0xc6, 0xc6]   # Column 4
-    ]
-    after = [
-        ['0x67', '0xff', '0x7', '0xa9']
-        ['0xe1', '0xc2', '0xd2', '0x38']
-        ['0x7a', '0x4a', '0x22', '0x4a']
-        ['0x12', '0xa9', '0x41', '0x5']
-    ]
-    """
-    # Convert each column to a list before passing to mix_single_column
-    mixed = [mix_single_column(list(col)) for col in zip(*state)]
-    
-    # Transpose back to row format
-    return [list(row) for row in zip(*mixed)]
+    """Applies MixColumns to the entire state, ensuring the correct shape."""
+    mixed = [mix_single_column(col) for col in zip(*state)]  # Mix each column
+    return [list(row) for row in zip(*mixed)]  # Transpose back
 
 # SubWord transformation in AES.
 def sub_words(word):
@@ -233,8 +163,7 @@ def key_expansion(key):
     assert len(key) == 16  # Ensure 16-byte key
 
     # Initialize the key schedule with the key
-    """
-    eg:     
+    """ eg:     
     key_schedule = [
             [0x2b, 0x7e, 0x15, 0x16],  # W0
             [0x28, 0xae, 0xd2, 0xa6],  # W1
@@ -246,13 +175,11 @@ def key_expansion(key):
     # Extract 4 bytes from the key
     for i in range(0, 16, 4):
         key_schedule.append(list(key[i:i+4]))  # Convert to words
-
-
+        
     # Generate the remaining words (176 bytes)
     # temp is used for RotWord and SubWord transformations
     for i in range(Nk, Nb * (Nr + 1)):
-        """
-        eg:
+        """ eg:
             W0 = [0x2b, 0x7e, 0x15, 0x16]
             W1 = [0x28, 0xae, 0xd2, 0xa6]
             W2 = [0xab, 0xf7, 0x1d, 0x5f]
@@ -261,95 +188,151 @@ def key_expansion(key):
             temp = [0xac, 0x77, 0x19, 0x8c]
         """
         temp = key_schedule[i - 1]
-
         if i % Nk == 0:  # Every Nk-th word
-            """
-            eg:
+            """ eg:
             temp = [0xac, 0x77, 0x19, 0x8c]
             rot_words(temp) = [0x77, 0x19, 0x8c, 0xac]
             sub_words(rot_words(temp)) = [0xF2, 0xD4, 0x64, 0x91]
             """
             temp = sub_words(rot_words(temp))  # RotWord + SubWord
             
-            """
-            eg: i = 4
+            """ eg: i = 4
             temp = temp[0] ^ RCON[1][0]
             temp = [0xF2 ^ 0x01]
             temp = [0xF3] 
             """
             for j in range(4):
                 temp[j] = temp[j] ^ RCON[i//Nk][j]  # XOR with Rcon
-
-        """
-        eg:
+        """ eg:
         temp = [0xf2, 0xd4, 0x64, 0x91]
         key_schedule[i - Nk] = key_schedule[0] = [0x2b, 0x7e, 0x15, 0x16]
         [ 0x2b ^ 0xf2, 0x7e ^ 0xd4, 0x15 ^ 0x64, 0x16 ^ 0x91]
         [ 0xd9, 0xaa, 0x71, 0x87 ] -> new word
         """
-        key_schedule.append([key_schedule[i - Nk][j] ^ temp[j] for j in range(4)])
-
+        key_schedule.append([temp[j] ^ key_schedule[i - Nk][j] for j in range(4)])
+        
     return key_schedule
 
-# Generate a 16-byte key (128 bits)
-import os
-aes_key = os.urandom(16)  # 32-byte (AES-256)
+# AES Encryption
+def aes_encrypt(plaintext, key):
+    """Encrypts a 16-byte plaintext using AES-128."""
+    assert len(plaintext) == 16 and len(key) == 16, "Plaintext and key must be 16 bytes each."
+    
+    # Convert plaintext into a 4x4 state matrix
+    state = [list(plaintext[i:i+4]) for i in range(0, 16, 4)]
+    
+    # Generate round keys
+    round_keys = key_expansion(key)
+    
+    # Initial round: AddRoundKey
+    state = add_round_key(state, round_keys[:4])
+    
+    # Main rounds (9 rounds for AES-128)
+    for round_num in range(1, 10):
+        state = sub_bytes(state)
+        state = shift_rows(state)
+        state = mix_columns(state)
+        state = add_round_key(state, round_keys[round_num*4:(round_num+1)*4])
+    
+    # Final round (no MixColumns)
+    state = sub_bytes(state)
+    state = shift_rows(state)
+    state = add_round_key(state, round_keys[40:])
+    
+    # Convert state back to a single byte array
+    ciphertext = bytes(sum(state, []))
+    return ciphertext
 
-# aes_key = [random.randint(0, 255) for _ in range(32)]
-# print(aes_key.hex())  # Prints hex string (e.g., "f23a9c...b8d5")
-# print(bytes(aes_key))  # Prints bytes (e.g., b'\xf2\x3a\x9c...\xb8\xd5')
-# print(bytes(aes_key).hex())
-# Print the key in hex format
-# hex_key = " ".join(f"{byte:02X}" for byte in aes_key)
-# Fixed Key (User-Defined)
-# fixed_key = bytes.fromhex("2b7e151628aed2a6abf7158809cf4f3c")  # 16 bytes
-# print("AES Key (Hex):", hex_key)
-# print(f"fixed_key: {fixed_key}")
+# Example usage:
+plaintext = b"thisisasecretmsg"  # 16-byte plaintext
+key = b"thisisakey123456"        # 16-byte key
+ciphertext = aes_encrypt(plaintext, key)
+print(ciphertext.hex())
 
-# key_schedule = [list(aes_key[i:i+4]) for i in range(0, 16, 4)]
-# print (key_schedule)
-# Generate a random 16-byte AES key
-# random_key = os.urandom(16)  # 16 bytes = 128 bits
-# print(random_key.hex())  # Print as hex
 
-def key_expansion(key):
-    """Generate 44 words (176 bytes) from a 16-byte key (AES-128)"""
-    assert len(key) == 16  # Ensure 16-byte key
+# # AES Decryption Implementation
 
-    key_schedule = [list(key[i:i+4]) for i in range(0, 16, 4)]  # Convert to 4-word list
+# # AES Inverse S-Box (InvSubBytes step) - Full 16x16 Table
+# INV_S_BOX = [[0] * 16 for _ in range(16)]
 
-    for i in range(4, 44):
-        temp = key_schedule[i - 1]
+# # Generate inverse S-Box by reversing the mapping of S-Box
+# for i in range(16):
+#     for j in range(16):
+#         val = S_BOX[i][j]
+#         row, col = val >> 4, val & 0x0F
+#         INV_S_BOX[row][col] = (i << 4) | j
 
-        if i % 4 == 0:  # Every 4th word
-            temp = sub_words(rot_words(temp))  # Apply RotWord + SubWord
-            temp = [temp[j] ^ RCON[i//4][j] for j in range(4)]  # XOR with Rcon
+# # Inverse SubBytes transformation
+# def inv_sub_bytes(state):
+#     return [[INV_S_BOX[(byte >> 4) & 0x0F][byte & 0x0F] for byte in row] for row in state]
 
-        key_schedule.append([key_schedule[i - 4][j] ^ temp[j] for j in range(4)])
+# # Inverse ShiftRows transformation
+# def inv_shift_rows(state):
+#     state[1] = [state[1][-1]] + state[1][:-1]  # Shift row 1 right by 1
+#     state[2] = state[2][-2:] + state[2][:-2]  # Shift row 2 right by 2
+#     state[3] = state[3][-3:] + state[3][:-3]  # Shift row 3 right by 3
+#     return state
 
-    return key_schedule
+# # Galois multiplication
+# def gmul(a, b):
+#     p = 0
+#     for _ in range(8):
+#         if b & 1:
+#             p ^= a
+#         hi_bit_set = a & 0x80
+#         a = (a << 1) & 0xFF
+#         if hi_bit_set:
+#             a ^= 0x1B
+#         b >>= 1
+#     return p
 
-# input_column = [0xdb, 0xf2, 0x01, 0xc6]
-state = [
-    [0xdb, 0x13, 0x53, 0x45],  # Column 1
-    [0xf2, 0x0a, 0x22, 0x5c],  # Column 2
-    [0x01, 0x01, 0x01, 0x01],  # Column 3
-    [0xc6, 0xc6, 0xc6, 0xc6]   # Column 4
-]
-# MixColumns transformation in AES.
-print(mix_columns(state))
-# print([hex(b) for b in mix_columns(state)])
-# output_column = mix_single_column(input_column)
+# # Inverse MixColumns transformation using Galois multiplication
+# def inv_mix_columns(state):
+#     def inv_mix_single_column(column):
+#         a = column[:]
+#         return [
+#             gmul(a[0], 0x0E) ^ gmul(a[1], 0x0B) ^ gmul(a[2], 0x0D) ^ gmul(a[3], 0x09),
+#             gmul(a[0], 0x09) ^ gmul(a[1], 0x0E) ^ gmul(a[2], 0x0B) ^ gmul(a[3], 0x0D),
+#             gmul(a[0], 0x0D) ^ gmul(a[1], 0x09) ^ gmul(a[2], 0x0E) ^ gmul(a[3], 0x0B),
+#             gmul(a[0], 0x0B) ^ gmul(a[1], 0x0D) ^ gmul(a[2], 0x09) ^ gmul(a[3], 0x0E),
+#         ]
+#     mixed = [inv_mix_single_column(col) for col in zip(*state)]
+#     return [list(row) for row in zip(*mixed)]
 
-# print(output_column)  # Example Output: [0x8e, 0x4d, 0xa1, 0xbc]
-# print([hex(b) for b in output_column]) # Example Output:
+# # XOR state with round key
+# def add_round_key(state, round_key):
+#     return [[state[i][j] ^ round_key[i][j] for j in range(4)] for i in range(4)]
 
-# Perform MixColumns
-mixed_state = mix_columns(state)
+# # AES Decryption function
 
-# Convert to properly formatted hex format
-hex_state = [[f"0x{num:02x}" for num in row] for row in mixed_state]
 
-# Print result
-for row in hex_state:
-    print(row)
+# from Crypto.Cipher import AES
+# from Crypto.Util.Padding import unpad
+# import base64
+
+# def aes_decrypt(ciphertext: str, key: str) -> str:
+#     # Ensure key is 16, 24, or 32 bytes long
+#     if isinstance(key, str):
+#         key = key.encode('utf-8')  # Convert string key to bytes only if needed
+
+#     key = key.ljust(32, b' ')[:32]  # Pad or truncate key to 32 bytes
+    
+#     # Decode base64 encoded ciphertext
+#     encrypted_data = base64.b64decode(ciphertext)
+    
+#     # Extract IV (first 16 bytes) and actual encrypted data
+#     iv, encrypted_text = encrypted_data[:16], encrypted_data[16:]
+    
+#     # Initialize AES cipher in CBC mode
+#     cipher = AES.new(key, AES.MODE_CBC, iv)
+    
+#     # Decrypt and remove padding
+#     decrypted_text = unpad(cipher.decrypt(encrypted_text), AES.block_size)
+    
+#     return decrypted_text.decode('utf-8')
+
+# # Example usage
+# ciphertext = aes_encrypt(plaintext, key)
+
+# decrypted_text = aes_decrypt(ciphertext, key)
+# print("Decrypted text:", decrypted_text)

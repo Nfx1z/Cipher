@@ -134,8 +134,7 @@ def mix_columns(state):
 
 # SubWord transformation in AES.
 def sub_words(word):
-    """
-    SubWord transformation in AES.
+    """ SubWord transformation in AES.
     Similar to sub_bytes, but for a single word
     eg: 0x19 -> 0x19 >> 4 = 0x01, 0x19 & 0x0F = 0x09
     word = [0x77, 0x19, 0x8c, 0xac]
@@ -145,12 +144,9 @@ def sub_words(word):
 
 # Rotate the words in the key schedule
 def rot_words(word):
-    """
-    Rotate the words in the key schedule
-
+    """ Rotate the words in the key schedule
     Before rotation: [0x1A, 0x2B, 0x3C, 0x4D]
     After rotation:  [0x2B, 0x3C, 0x4D, 0x1A]
-
     """
     return word[1:] + word[:1]
 

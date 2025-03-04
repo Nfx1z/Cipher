@@ -46,8 +46,7 @@ def add_round_key(state, round_key):
 
 #  SubBytes : Uses the S-box to replace each byte
 def sub_bytes(state):
-    """
-    In AES, row first, col second
+    """ In AES, row first, col second
     0x53 -> row 5, col 3
     eg: 0x74 -> 0x74 >> 4 = 0x07, 0x74 & 0x0F = 0x04
         0111 0100 (0x74)

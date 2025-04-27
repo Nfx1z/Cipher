@@ -10,7 +10,7 @@ we convert the key and plaintext to lowercase to make it case-insensitive.
  a  b  c  d   e   f   g   h   i   j   k   l   m   n   o   p   q   r   s   t   u   v   w   x   y   z
 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122
 
-for example (encrryption):
+(encrryption):
 
 plaintext = "Hello World"
 key = "zEY"
@@ -54,13 +54,13 @@ def encrypt(plaintext, key):
 
 def decrypt(ciphertext, key):
     """Decrypts text using Vigenere cipher with given key"""
-    plaintext = ""
-    key = key.lower()
-    key_length = len(key)
-    key_as_int = [ord(i) for i in key]
+    plaintext = ""      # to store decrypted text
+    key = key.lower()   # lowecase key because we are using a-z only
+    key_length = len(key)   
+    key_as_int = [ord(i) for i in key]    # convert key to integer
     
     ciphertext = ciphertext.lower()
-    ciphertext_int = [ord(i) for i in ciphertext]
+    ciphertext_int = [ord(i) for i in ciphertext]        # convert ciphertext to integer
     
     for i in range(len(ciphertext_int)):
         if ciphertext[i].isalpha():
